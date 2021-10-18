@@ -30,14 +30,14 @@ int file_po_load(mini18n_hash_t * hash, FILE * f) {
 
 	while(fgets(buffer, 1024, f)) {
 		c = buffer;
+
+		// skip comments and blank lines
+		if (c[0] == '#' || c[0] == '\n')
+			continue;
+
 		while(*c != '\0') {
 			switch(state) {
 				case 0:
-					if (*c == '#') {
-						state = 7;
-						break;
-					}
-
 					if (!strncmp(c, "msgid", 5)) {
 						i = 0;
 						state = 1;
@@ -90,14 +90,14 @@ int file_po_load(mini18n_hash_t * hash, FILE * f) {
 						state = 1;
 					}
 					break;
-				case 7: /* comment */
-					while (*c != '\n') c++;
-					state = 0;
-					break;
 			}
 			c++;
 		}
 	}
+
+	// add any remaining strings
+	if (state == 6 && key[0] && value[0])
+		mini18n_hash_add(hash, key, value);
 
 	return 0;
 }
