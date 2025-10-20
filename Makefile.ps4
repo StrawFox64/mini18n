@@ -4,13 +4,11 @@
 .SUFFIXES:
 #---------------------------------------------------------------------------------
 
-ifeq ($(strip $(PSL1GHT)),)
-$(error "Please set PSL1GHT in your environment. export PSL1GHT=<path>")
+ifeq ($(strip $(OO_PS4_TOOLCHAIN)),)
+$(error "Please set OO_PS4_TOOLCHAIN in your environment. export OO_PS4_TOOLCHAIN=<path>")
 endif
 
-include	$(PSL1GHT)/ppu_rules
-
-
+include $(OO_PS4_TOOLCHAIN)/build_rules.mk
 
 #---------------------------------------------------------------------------------
 ifeq ($(strip $(PLATFORM)),)
@@ -30,17 +28,15 @@ export DEPSDIR		:=	$(DEPS)/$(PLATFORM)
 endif
 #---------------------------------------------------------------------------------
 
-TARGET		:=	libmini18n
-BUILD		:=	build
+TARGET		:=	build-ps4/libmini18n
+BUILD		:=	build-ps4
 SOURCE		:=	src
 INCLUDE		:=	include
 DATA		:=	data
 LIBS		:=
 
-MACHDEP		:= -DBIGENDIAN -DHAVE_WCSDUP -DHAVE_WCS_POINTERS
-CFLAGS		+= -O2 -Wall -mcpu=cell $(MACHDEP) -fno-strict-aliasing $(INCLUDES)
-
-LD			:=	ppu-ld
+CFLAGS      += --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(OO_PS4_TOOLCHAIN) -isystem $(OO_PS4_TOOLCHAIN)/include $(INCLUDES) -D__PS4__ -DHAVE_WCSDUP
+CXXFLAGS    += $(CFLAGS) -isystem $(OO_PS4_TOOLCHAIN)/include/c++/v1
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -54,35 +50,27 @@ CFILES		:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.c)))
 CXXFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.S)))
 BINFILES	:= $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.bin)))
-VCGFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.vcg)))
-VSAFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.vsa)))
-
 
 export OFILES	:=	$(CFILES:.c=.o) \
 					$(CXXFILES:.cpp=.o) \
 					$(SFILES:.S=.o) \
-					$(BINFILES:.bin=.bin.o) \
-					$(VCGFILES:.vcg=.vcg.o) \
-					$(VSAFILES:.vsa=.vsa.o)
+					$(BINFILES:.bin=.bin.o)
 
 export BINFILES	:=	$(BINFILES:.bin=.bin.h)
-export VCGFILES	:=	$(VCGFILES:.vcg=.vcg.h)
-export VSAFILES	:=	$(VSAFILES:.vsa=.vsa.h)
 
 export INCLUDES	=	$(foreach dir,$(INCLUDE),-I$(CURDIR)/$(dir)) \
-					-I$(CURDIR)/$(BUILD) -I$(PSL1GHT)/ppu/include -I$(PORTLIBS)/include
+					-I$(CURDIR)/$(BUILD) -I$(OO_PS4_TOOLCHAIN)/include
 
-.PHONY: $(BUILD) install clean shader
+.PHONY: $(BUILD) install clean
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile.PS4
 
 install: $(BUILD)
 	@echo Copying...
-	@[ -d $(PORTLIBS)/include ] || mkdir -p $(PORTLIBS)/include
-	@cp -frv src/mini18n.h $(PORTLIBS)/include
-	@cp -frv $(TARGET).a $(PORTLIBS)/lib
+	@cp -frv src/mini18n.h $(OO_PS4_TOOLCHAIN)/include
+	@cp -frv $(TARGET).a $(OO_PS4_TOOLCHAIN)/lib
 	@echo lib installed!
 clean:
 	@echo Clean...
@@ -93,7 +81,7 @@ else
 DEPENDS	:= $(OFILES:.o=.d)
 
 $(OUTPUT).a: $(OFILES)
-$(OFILES): $(BINFILES) $(VCGFILES) $(VSAFILES)
+$(OFILES): $(BINFILES)
 
 -include $(DEPENDS)
 
